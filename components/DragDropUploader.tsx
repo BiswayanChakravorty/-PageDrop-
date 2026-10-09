@@ -110,7 +110,24 @@ export default function DragDropUploader() {
       setPublishedUrl(`${base}/p/${slug}`);
       setProgress(100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed. Check that Vercel Blob and Supabase are configured.");
+      let message = err instanceof Error ? err.message : "Upload failed.";
+      if (message.toLowerCase().includes("client token") || message.toLowerCase().includes("upload")) {
+        try {
+          const diagnosticResponse = await fetch("/api/health", { cache: "no-store" });
+          if (diagnosticResponse.ok) {
+            const diagnostic = await diagnosticResponse.json();
+            const missing = Array.isArray(diagnostic.missing) ? diagnostic.missing as string[] : [];
+            if (missing.includes("blobToken")) {
+              message = "Vercel Blob is not configured for this deployment. Add BLOB_READ_WRITE_TOKEN in Vercel → Settings → Environment Variables, then redeploy.";
+            } else if (missing.includes("supabaseUrl") || missing.includes("supabaseServiceKey")) {
+              message = "Supabase is not configured for this deployment. Add SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY in Vercel → Settings → Environment Variables, then redeploy.";
+            }
+          }
+        } catch {
+          // Keep the original upload error if diagnostics are unavailable.
+        }
+      }
+      setError(message);
     } finally {
       setIsUploading(false);
     }
