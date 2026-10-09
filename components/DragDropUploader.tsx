@@ -24,6 +24,25 @@ function normalizeSlug(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 }
 
+function getContentType(file: File) {
+  const declared = file.type.toLowerCase().split(";")[0].trim();
+  if (declared === "application/x-zip-compressed") return "application/zip";
+  if (Object.prototype.hasOwnProperty.call(ACCEPTED, declared)) return declared;
+
+  const extension = file.name.toLowerCase().split(".").pop();
+  const byExtension: Record<string, string> = {
+    html: "text/html",
+    htm: "text/html",
+    pdf: "application/pdf",
+    zip: "application/zip",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+  };
+  return extension ? byExtension[extension] || declared : declared;
+}
+
 export default function DragDropUploader() {
   const [file, setFile] = useState<File | null>(null);
   const [customSlug, setCustomSlug] = useState("");
@@ -61,9 +80,14 @@ export default function DragDropUploader() {
     setIsUploading(true);
     setProgress(0);
     try {
-      const clientPayload = JSON.stringify({ slug, fileName: file.name, contentType: file.type || "application/octet-stream", size: file.size });
+      const contentType = getContentType(file);
+      if (!Object.prototype.hasOwnProperty.call(ACCEPTED, contentType)) {
+        throw new Error("Unsupported file type. Choose HTML, PDF, ZIP, PNG, JPG, or WEBP.");
+      }
+      const clientPayload = JSON.stringify({ slug, fileName: file.name, contentType, size: file.size });
       await upload(`uploads/${slug}/${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`, file, {
         access: "public",
+        contentType,
         handleUploadUrl: "/api/upload",
         clientPayload,
         multipart: file.size > 4 * 1024 * 1024,
