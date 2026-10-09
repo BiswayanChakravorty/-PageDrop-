@@ -39,9 +39,8 @@ export async function POST(request: Request) {
         if (!pathname.startsWith(`uploads/${payload.slug}/`)) throw new Error("Upload path does not match the selected slug.");
 
         const supabase = getSupabase();
-        const base = (process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || "http://localhost:3000").replace(/^https?:\/\//, "").replace(/\/$/, "");
-        const protocol = process.env.NEXT_PUBLIC_APP_URL?.startsWith("http://") ? "http://" : "https://";
-        const publishedUrl = `${process.env.NEXT_PUBLIC_APP_URL ? "" : protocol}${base}/p/${payload.slug}`;
+        const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+        const publishedUrl = `${configuredOrigin.replace(/\/$/, "")}/p/${payload.slug}`;
         const { error } = await supabase.from("projects").insert({
           slug: payload.slug,
           file_name: payload.fileName,
